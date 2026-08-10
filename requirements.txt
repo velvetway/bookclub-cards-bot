@@ -1,0 +1,7 @@
+aiogram==3.30.0
+aiosqlite==0.22.1
+python-dotenv==1.2.2
+
+# для тестов
+pytest==9.1.1
+pytest-asyncio==1.4.0

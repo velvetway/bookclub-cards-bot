@@ -1,0 +1,43 @@
+{
+  "style": {
+    "character": "the same recurring mascot in every card: a small brown mackerel tabby kitten with big round green eyes, a white chest and white paws, soft plush fur, gentle and endearing rather than wild",
+    "look": "warm painterly digital illustration, cozy storybook realism, soft golden light, shallow depth of field with creamy bokeh, floating dust motes and tiny sparkles, finely detailed fur, muted vintage palette of amber, honey, deep green and worn paper, antique books and candle or lamp glow",
+    "frame": "square 1:1 composition, the kitten centered in the upper two thirds, the bottom fifth of the frame kept calm, darker and uncluttered so a caption can be placed there later",
+    "negative": "no text, no letters, no words, no numbers, no watermark, no signature, no logo, no frame border, no people, not photorealistic, no harsh contrast, no neon colors"
+  },
+  "cards": [
+    {"code": "OPT-01", "title": "Адвокат", "scene": "the kitten stands behind a small wooden lectern in a tiny lawyer's robe with a white lace jabot, one paw raised in an earnest defending gesture, an open book in front of it, warm library light behind"},
+    {"code": "OPT-02", "title": "Прокурор", "scene": "the kitten sits very straight in a dark robe, one paw pointing accusingly at a thick open book lying before it, a small brass bell and a rolled scroll nearby, dramatic side light"},
+    {"code": "OPT-03", "title": "Только мир", "scene": "the kitten sits on an open book and gazes out at a wide landscape of hills and mist that rises out of the pages like a diorama, air and space, the story itself out of focus"},
+    {"code": "OPT-04", "title": "Только сборка", "scene": "the kitten as a tiny watchmaker with a jeweller's loupe over one eye, taking apart a book that is built like a clockwork mechanism, brass gears and springs laid out neatly on the desk"},
+    {"code": "OPT-05", "title": "Одна сцена", "scene": "the kitten holds a small lantern over one single page, a narrow warm beam lighting one paragraph while the rest of the room falls into soft darkness"},
+    {"code": "OPT-06", "title": "Через другую книгу", "scene": "the kitten sits between two open books turned toward each other, glancing from one to the other, a thin glowing thread arcs between the two volumes like a bridge"},
+
+    {"code": "INS-01", "title": "Своя сцена", "scene": "the kitten sits inside a small glowing stage that grows out of an open book, tiny paper scenery and curtains around it, one scene kept alive after the story ended"},
+    {"code": "INS-02", "title": "Выделенное", "scene": "the kitten holds up an open book with one line marked by a bright silk ribbon bookmark, mouth slightly open as if reading that line aloud, warm candlelight"},
+    {"code": "INS-03", "title": "Точка входа", "scene": "the kitten steps through a page that has opened like a door, forepaws already inside the glowing doorway, the rest of the library dim behind it"},
+    {"code": "INS-04", "title": "Тяжёлое место", "scene": "the kitten climbs a steep page that rises like a paper mountain, claws dug into the paper, ears back with effort, cold blue light at the summit and warm light below"},
+    {"code": "INS-05", "title": "Свой человек", "scene": "the kitten leans its cheek against a small figure that steps out of the book, both in the same warm light, quiet recognition, soft golden glow around the pair"},
+    {"code": "INS-06", "title": "Чужой", "scene": "the kitten turns away with flattened ears and a puffed tail from a tall shadowy figure rising out of the open pages, cold light on the figure, warm light on the kitten"},
+    {"code": "INS-07", "title": "Второстепенный", "scene": "the kitten peers closely at a tiny mouse character standing at the very edge of the page margin, the big main characters blurred in the background, magnifying glass in one paw"},
+    {"code": "INS-08", "title": "Где перестал верить", "scene": "the kitten squints skeptically with one eyebrow raised at a page whose lines have started to ripple and come loose, a few paper fragments floating up"},
+    {"code": "INS-09", "title": "Ножницы", "scene": "the kitten holds a pair of small brass scissors and carefully cuts a piece out of a page, paper cutouts scattered on the desk around it"},
+    {"code": "INS-10", "title": "Дыра", "scene": "the kitten leans over a round hole burned through the middle of an open book, warm light pouring up out of the hole onto its curious face"},
+    {"code": "INS-11", "title": "Лишний", "scene": "the kitten lifts one small paper figure out of a crowded pop-up book and sets it aside on the desk, the scene behind now calmer and more balanced"},
+    {"code": "INS-12", "title": "Другой финал", "scene": "the kitten writes on a fresh last page with a long quill pen, two or three alternative paper endings pinned above like laundry on a line"},
+    {"code": "INS-13", "title": "Мотив", "scene": "the kitten holds a magnifying glass over a small figure's chest where a warm glowing clockwork heart is visible, everything else in soft shadow"},
+    {"code": "INS-14", "title": "Виноват", "scene": "the kitten as a small detective with a lantern, following a trail of inky paw prints across an open page, deerstalker cap slightly too big"},
+    {"code": "INS-15", "title": "После финала", "scene": "the kitten sits on a closed book by a window, looking into the distance at dusk, one last warm ray across its face, the story already over"},
+    {"code": "INS-16", "title": "Кому дал бы прочитать", "scene": "the kitten pushes a book across a table toward another sleepy kitten, both paws on the cover, a warm and generous gesture"},
+    {"code": "INS-17", "title": "Название", "scene": "the kitten tilts its head at a standing book cover that carries only an empty ornate blank plate where a title would be, curious and slightly doubtful"},
+    {"code": "INS-18", "title": "На чём держится", "scene": "the kitten stands on a small structure built of four stacked book columns holding up a floating open volume, testing one column with a careful paw"},
+    {"code": "INS-19", "title": "Одна эмоция", "scene": "the kitten hugs a book that glows with one single warm color, the whole room lit by that one hue, the kitten's face carrying that one feeling"},
+    {"code": "INS-20", "title": "Разговор", "scene": "two kittens of the same breed sit facing each other across an open book on a table, small soft speech clouds of warm steam rising between them"},
+
+    {"code": "RAT-01", "title": "Цена балла", "scene": "the kitten watches a small brass balance scale, one pan holding a single gold coin, the other holding a thin book, weighing them with a serious little face"},
+    {"code": "RAT-02", "title": "Порог", "scene": "the kitten stretches one paw up toward the next stone step of a warm-lit staircase made of stacked books, almost reaching it"},
+    {"code": "RAT-03", "title": "Не моё", "scene": "the kitten tries on a pair of round spectacles that are far too large, sliding off its nose, setting them aside with a polite and slightly rueful expression"},
+    {"code": "RAT-04", "title": "Через год", "scene": "the kitten sits beside a large hourglass, its warm reflection in the glass shown as a grown cat, an open book between them, sand falling slowly"},
+    {"code": "RAT-05", "title": "Накинутое", "scene": "the kitten quietly places one extra golden star on top of a small stack of stars beside a book, glancing aside a little guiltily"}
+  ]
+}

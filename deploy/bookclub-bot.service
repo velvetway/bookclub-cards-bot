@@ -1,0 +1,23 @@
+[Unit]
+Description=Bookclub cards bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bookclub
+WorkingDirectory=/opt/bookclub-cards-bot
+ExecStart=/opt/bookclub-cards-bot/.venv/bin/python -m bot.main
+Restart=always
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=20
+
+# бот пишет только в свой каталог
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

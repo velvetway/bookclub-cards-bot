@@ -1,0 +1,2 @@
+# Только для scripts/make_cards.py — самому боту Pillow не нужен.
+Pillow==11.3.0
