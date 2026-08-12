@@ -45,6 +45,7 @@ PLATE_HEIGHT = 0.22      # доля высоты картинки под зат�
 TEXT_MARGIN = 0.08       # отступ от краёв по ширине
 MAX_FONT = 0.11          # максимальный кегль как доля высоты картинки
 MIN_FONT = 0.04
+MAX_SIDE = 1280          # Telegram всё равно ужмёт, а репозиторий не пухнет
 
 
 def find_font(explicit: str | None) -> Path:
@@ -90,20 +91,19 @@ def draw_plate(image: Image.Image) -> Image.Image:
     """Мягкое затемнение снизу, чтобы белый текст читался на любой картинке."""
     width, height = image.size
     plate_height = int(height * PLATE_HEIGHT)
-    overlay = Image.new("RGBA", (width, plate_height), (0, 0, 0, 0))
-    pixels = overlay.load()
 
-    for y in range(plate_height):
-        alpha = int(190 * (y / plate_height) ** 1.4)
-        for x in range(width):
-            pixels[x, y] = (12, 8, 4, alpha)
+    # градиент строим в один пиксель шириной и растягиваем — так быстрее попиксельного цикла
+    column = Image.new("L", (1, plate_height))
+    column.putdata([int(190 * (y / plate_height) ** 1.4) for y in range(plate_height)])
+    mask = column.resize((width, plate_height))
 
-    image.paste(overlay, (0, height - plate_height), overlay)
+    overlay = Image.new("RGB", (width, plate_height), (12, 8, 4))
+    image.paste(overlay, (0, height - plate_height), mask)
     return image
 
 
 def render(source: Path, title: str, out_path: Path, font_path: Path) -> None:
-    image = Image.open(source).convert("RGBA")
+    image = Image.open(source).convert("RGB")
     image = draw_plate(image)
 
     draw = ImageDraw.Draw(image)
@@ -114,11 +114,13 @@ def render(source: Path, title: str, out_path: Path, font_path: Path) -> None:
     x = (width - text_width) / 2
     y = height - int(height * PLATE_HEIGHT * 0.62)
 
-    draw.text((x + 2, y + 2), title, font=font, fill=(0, 0, 0, 160))
-    draw.text((x, y), title, font=font, fill=(255, 248, 235, 255))
+    draw.text((x + 2, y + 2), title, font=font, fill=(0, 0, 0))
+    draw.text((x, y), title, font=font, fill=(255, 248, 235))
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    image.convert("RGB").save(out_path, "PNG")
+    if image.width > MAX_SIDE:
+        image.thumbnail((MAX_SIDE, MAX_SIDE), Image.LANCZOS)
+    image.save(out_path, "JPEG", quality=90, optimize=True)
 
 
 def main() -> None:
@@ -148,7 +150,7 @@ def main() -> None:
         if source is None:
             missing.append(code)
             continue
-        render(source, title, args.out / f"{code}.png", font_path)
+        render(source, title, args.out / f"{code}.jpg", font_path)
         done += 1
         print(f"✓ {code} — {title}")
 
