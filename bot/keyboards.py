@@ -332,8 +332,23 @@ def report_actions(deal: Deal, views: list[AssignmentView]) -> InlineKeyboardMar
 # ------------------------------------------------------------------- колода
 
 
-def cards_list(cards: list[Card], page: int = 0, card_type: str | None = None) -> InlineKeyboardMarkup:
+# двоеточие в callback_data — служебный разделитель aiogram, поэтому точка
+DECK_FILTER = "deck."
+
+
+def cards_list(
+    cards: list[Card],
+    page: int = 0,
+    active: str | None = None,
+    decks: list | None = None,
+) -> InlineKeyboardMarkup:
+    """Список колоды с фильтрами по типу карты и по колоде.
+
+    active — текущий фильтр: пусто (все), код типа или "deck:<ключ>".
+    """
     kb = InlineKeyboardBuilder()
+    active = active or ""
+    decks = decks or []
     start = page * CARDS_PER_PAGE
     chunk = cards[start : start + CARDS_PER_PAGE]
 
@@ -349,7 +364,7 @@ def cards_list(cards: list[Card], page: int = 0, card_type: str | None = None) -
     if start > 0:
         nav.append(
             InlineKeyboardButton(
-                text="‹", callback_data=CardCB(action="list", page=page - 1, value=card_type or "").pack()
+                text="‹", callback_data=CardCB(action="list", page=page - 1, value=active).pack()
             )
         )
     nav.append(
@@ -361,23 +376,27 @@ def cards_list(cards: list[Card], page: int = 0, card_type: str | None = None) -
     if start + CARDS_PER_PAGE < len(cards):
         nav.append(
             InlineKeyboardButton(
-                text="›", callback_data=CardCB(action="list", page=page + 1, value=card_type or "").pack()
+                text="›", callback_data=CardCB(action="list", page=page + 1, value=active).pack()
             )
         )
     kb.row(*nav)
 
-    filters = [
-        InlineKeyboardButton(text="Все", callback_data=CardCB(action="list", value="").pack())
-    ]
-    for type_code in CARD_TYPES:
-        filters.append(
-            InlineKeyboardButton(
-                text=CARD_TYPE_NAMES[type_code].capitalize(),
-                callback_data=CardCB(action="list", value=type_code).pack(),
-            )
+    def chip(text: str, value: str) -> InlineKeyboardButton:
+        mark = "· " if value == active else ""
+        return InlineKeyboardButton(
+            text=f"{mark}{text}", callback_data=CardCB(action="list", value=value).pack()
         )
-    kb.row(*filters[:2])
-    kb.row(*filters[2:])
+
+    kb.row(chip("Все", ""))
+    types = [chip(CARD_TYPE_NAMES[t].capitalize(), t) for t in CARD_TYPES]
+    kb.row(*types[:2])
+    kb.row(*types[2:])
+
+    # колоды показываем, только когда их больше одной: иначе это те же «Все»
+    if len(decks) > 1:
+        for deck in decks:
+            kb.row(chip(f"🗂 {deck.title} ({deck.count})"[:60], f"{DECK_FILTER}{deck.key}"))
+
     kb.row(InlineKeyboardButton(text="➕ Добавить карту", callback_data=CardCB(action="new").pack()))
     kb.row(InlineKeyboardButton(text="‹ В меню", callback_data=MenuCB(action="root").pack()))
     return kb.as_markup()

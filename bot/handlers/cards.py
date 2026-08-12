@@ -14,7 +14,7 @@ from aiogram.types import CallbackQuery, Message
 from bot import keyboards, texts
 from bot.callbacks import CardCB, MenuCB
 from bot.filters import IsAdmin, IsPrivate
-from bot.models import CARD_TYPE_NAMES
+from bot.models import CARD_TYPE_NAMES, DECK_MAIN
 from bot.storage import cards as cards_repo
 
 log = logging.getLogger(__name__)
@@ -31,22 +31,39 @@ class CardForm(StatesGroup):
     edit_hint = State()
 
 
-async def _list_text(conn: aiosqlite.Connection, card_type: str | None) -> str:
-    cards = await cards_repo.list_all(conn, card_type=card_type)
-    active = sum(1 for c in cards if c.is_active)
-    head = "Колода" if not card_type else f"Колода · {CARD_TYPE_NAMES[card_type]}"
-    return f"<b>{head}</b>\nВсего {len(cards)}, активных {active}."
+async def _select(
+    conn: aiosqlite.Connection, active: str
+) -> tuple[list, str]:
+    """Карты под текущий фильтр и подпись к нему."""
+    if active.startswith(keyboards.DECK_FILTER):
+        key = active[len(keyboards.DECK_FILTER) :]
+        deck = next((d for d in await cards_repo.decks(conn) if d.key == key), None)
+        # list_by_deck отдаёт только активные, а в колоде надо видеть и выключенные
+        cards = [
+            c
+            for c in await cards_repo.list_all(conn)
+            if (c.book_id is None if key == DECK_MAIN else c.code.startswith(f"{key}-"))
+        ]
+        return cards, f" · {deck.title}" if deck else ""
+
+    if active in CARD_TYPE_NAMES:
+        return await cards_repo.list_all(conn, card_type=active), f" · {CARD_TYPE_NAMES[active]}"
+
+    return await cards_repo.list_all(conn), ""
 
 
 async def _show_list(
     target: Message | CallbackQuery,
     conn: aiosqlite.Connection,
     page: int = 0,
-    card_type: str | None = None,
+    active: str | None = None,
 ) -> None:
-    cards = await cards_repo.list_all(conn, card_type=card_type)
-    text = await _list_text(conn, card_type)
-    markup = keyboards.cards_list(cards, page, card_type)
+    active = active or ""
+    cards, label = await _select(conn, active)
+    alive = sum(1 for c in cards if c.is_active)
+
+    text = f"<b>Колода{label}</b>\nВсего {len(cards)}, активных {alive}."
+    markup = keyboards.cards_list(cards, page, active, await cards_repo.decks(conn))
 
     if isinstance(target, CallbackQuery):
         await target.message.edit_text(text, reply_markup=markup)
@@ -74,7 +91,7 @@ async def cards_page(
     callback: CallbackQuery, callback_data: CardCB, conn: aiosqlite.Connection, state: FSMContext
 ) -> None:
     await state.clear()
-    await _show_list(callback, conn, callback_data.page, callback_data.value or None)
+    await _show_list(callback, conn, callback_data.page, callback_data.value)
 
 
 @router.callback_query(CardCB.filter(F.action == "noop"))
