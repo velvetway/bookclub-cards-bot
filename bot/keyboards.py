@@ -226,9 +226,10 @@ def preview_actions(deal: Deal) -> InlineKeyboardMarkup:
     kb.button(text="🎲 Перегенерировать", callback_data=DealCB(action="regen", deal_id=deal.id))
     kb.button(text="✏️ Править", callback_data=DealCB(action="edit", deal_id=deal.id))
     kb.button(text="📨 Отправить", callback_data=DealCB(action="send", deal_id=deal.id))
+    kb.button(text="🖼 Постер расклада", callback_data=DealCB(action="board", deal_id=deal.id))
     kb.button(text="🗑 Отменить раздачу", callback_data=DealCB(action="cancel", deal_id=deal.id))
     kb.button(text="‹ В меню", callback_data=MenuCB(action="root"))
-    kb.adjust(2, 1, 1, 1)
+    kb.adjust(2, 1, 1, 1, 1)
     return kb.as_markup()
 
 
@@ -321,11 +322,24 @@ def confirm_send(deal: Deal, *, resend: bool = False) -> InlineKeyboardMarkup:
     return kb.as_markup()
 
 
+def board_actions(deal: Deal, *, can_send: bool) -> InlineKeyboardMarkup:
+    """Постер уже у админа: остаётся решить, уходит ли он в чат."""
+    kb = InlineKeyboardBuilder()
+    if can_send:
+        kb.button(
+            text="📣 Отправить в чат", callback_data=DealCB(action="board_chat", deal_id=deal.id)
+        )
+    kb.button(text="‹ К раздаче", callback_data=DealCB(action="preview", deal_id=deal.id))
+    kb.adjust(1)
+    return kb.as_markup()
+
+
 def report_actions(deal: Deal, views: list[AssignmentView]) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
     if any(v.assignment.status == ASSIGN_FAILED for v in views):
         kb.button(text="🔄 Повторить недоставленные", callback_data=DealCB(action="retry", deal_id=deal.id))
     kb.button(text="📨 Отправить заново всем", callback_data=DealCB(action="resend", deal_id=deal.id))
+    kb.button(text="🖼 Постер расклада", callback_data=DealCB(action="board", deal_id=deal.id))
     kb.button(text="‹ В меню", callback_data=MenuCB(action="root"))
     kb.adjust(1)
     return kb.as_markup()
@@ -425,6 +439,13 @@ def cards_list(
             )
         kb.row(*bulk)
 
+    if cards:
+        kb.row(
+            InlineKeyboardButton(
+                text="🖼 Показать картинками",
+                callback_data=CardCB(action="sheet", value=active).pack(),
+            )
+        )
     kb.row(InlineKeyboardButton(text="➕ Добавить карту", callback_data=CardCB(action="new").pack()))
     kb.row(InlineKeyboardButton(text="‹ В меню", callback_data=MenuCB(action="root").pack()))
     return kb.as_markup()
@@ -567,6 +588,7 @@ def settings_menu() -> InlineKeyboardMarkup:
     kb.button(text="🔭 Кулдаун оптики", callback_data=SettingsCB(action="optics"))
     kb.button(text="🎲 Рероллы", callback_data=SettingsCB(action="rerolls"))
     kb.button(text="💬 Группа для объявлений", callback_data=SettingsCB(action="group"))
+    kb.button(text="🖼 Чат для постеров", callback_data=SettingsCB(action="board"))
     kb.button(text="📝 Шаблон сообщения", callback_data=SettingsCB(action="template"))
     kb.button(text="‹ В меню", callback_data=MenuCB(action="root"))
     kb.adjust(1)

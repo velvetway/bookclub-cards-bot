@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 import aiosqlite
-from aiogram import F, Router
+from aiogram import Bot, F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import BufferedInputFile, CallbackQuery, Message
 
-from bot import keyboards, texts
+from bot import keyboards, render, texts
 from bot.callbacks import CardCB, MenuCB
 from bot.filters import IsAdmin, IsPrivate
 from bot.models import CARD_TYPE_NAMES, DECK_MAIN
@@ -92,6 +93,31 @@ async def cards_page(
 ) -> None:
     await state.clear()
     await _show_list(callback, conn, callback_data.page, callback_data.value)
+
+
+@router.callback_query(CardCB.filter(F.action == "sheet"))
+async def deck_sheet(
+    callback: CallbackQuery, callback_data: CardCB, conn: aiosqlite.Connection, bot: Bot
+) -> None:
+    """Вся выборка одной картинкой — так колоду видно целиком, а не по восемь строк."""
+    cards, label = await _select(conn, callback_data.value)
+    if not cards:
+        await callback.answer("В этой выборке нет карт", show_alert=True)
+        return
+
+    await callback.answer("Собираю…")
+    title = f"Колода{label}" if label else "Вся колода"
+    try:
+        picture = await asyncio.to_thread(render.deck_sheet, cards, title)
+    except ValueError as exc:
+        await callback.message.answer(str(exc))
+        return
+
+    await bot.send_photo(
+        callback.from_user.id,
+        BufferedInputFile(picture, "deck.jpg"),
+        caption=f"{title} · {len(cards)} карт",
+    )
 
 
 @router.callback_query(CardCB.filter(F.action.in_({"deck_on", "deck_off"})))

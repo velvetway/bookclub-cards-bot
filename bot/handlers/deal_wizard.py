@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from html import escape
 
 import aiosqlite
 from aiogram import Bot, F, Router
+from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import BufferedInputFile, CallbackQuery, Message
 
-from bot import delivery, keyboards, service, texts
+from bot import delivery, keyboards, render, service, texts
 from bot.callbacks import AssignCB, DealCB, MenuCB, WizardCB
 from bot.config import Config
 from bot.dealer import NotEnoughCards
@@ -800,6 +802,88 @@ async def do_send(
         report += "\n\nОбъявление в группе опубликовано."
 
     await _show(callback, report, keyboards.report_actions(deal, views))
+
+
+BOARD_WARNING = (
+    "На постере видны карты всех участников. До встречи в общий чат такое "
+    "лучше не отправлять — интрига в том, что чужие карты неизвестны."
+)
+
+
+async def _build_board(conn: aiosqlite.Connection, deal, config: Config) -> bytes | None:
+    views = await deals_repo.views(conn, deal.id)
+    if not views:
+        return None
+    book = await books_repo.get(conn, deal.book_id)
+    return await asyncio.to_thread(render.deal_board, views, deal, book, config.tz)
+
+
+@router.callback_query(DealCB.filter(F.action == "board"))
+async def show_board(
+    callback: CallbackQuery,
+    callback_data: DealCB,
+    conn: aiosqlite.Connection,
+    config: Config,
+    bot: Bot,
+) -> None:
+    """Постер расклада — сначала только админу, чтобы было что посмотреть до отправки."""
+    deal = await deals_repo.get(conn, callback_data.deal_id)
+    if deal is None:
+        await callback.answer("Раздача не найдена", show_alert=True)
+        return
+
+    await callback.answer("Собираю…")
+    picture = await _build_board(conn, deal, config)
+    if picture is None:
+        await callback.answer("В раздаче никого нет", show_alert=True)
+        return
+
+    settings = await settings_repo.effective(conn, config)
+    await bot.send_photo(
+        callback.from_user.id,
+        BufferedInputFile(picture, f"deal-{deal.id}.jpg"),
+        caption=BOARD_WARNING,
+        reply_markup=keyboards.board_actions(deal, can_send=settings.board_chat_id is not None),
+    )
+
+
+@router.callback_query(DealCB.filter(F.action == "board_chat"))
+async def send_board(
+    callback: CallbackQuery,
+    callback_data: DealCB,
+    conn: aiosqlite.Connection,
+    config: Config,
+    bot: Bot,
+) -> None:
+    deal = await deals_repo.get(conn, callback_data.deal_id)
+    settings = await settings_repo.effective(conn, config)
+    if deal is None:
+        await callback.answer("Раздача не найдена", show_alert=True)
+        return
+    if settings.board_chat_id is None:
+        await callback.answer("Сначала задай чат в /settings", show_alert=True)
+        return
+
+    await callback.answer("Отправляю…")
+    picture = await _build_board(conn, deal, config)
+    if picture is None:
+        await callback.answer("В раздаче никого нет", show_alert=True)
+        return
+
+    book = await books_repo.get(conn, deal.book_id)
+    caption = f"Расклад: {texts.book_line(book)} · {texts.members_word(len(await deals_repo.assignments(conn, deal.id)))}"
+    try:
+        await bot.send_photo(
+            settings.board_chat_id, BufferedInputFile(picture, f"deal-{deal.id}.jpg"), caption=caption
+        )
+    except TelegramAPIError as exc:
+        log.warning("не удалось отправить постер в чат: %s", exc)
+        await callback.answer(f"Не ушло: {exc}"[:180], show_alert=True)
+        return
+
+    log.info("постер раздачи %s отправлен в чат %s", deal.id, settings.board_chat_id)
+    await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.message.answer("Постер отправлен в чат.")
 
 
 @router.callback_query(DealCB.filter(F.action == "resend"))

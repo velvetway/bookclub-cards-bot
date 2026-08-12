@@ -18,6 +18,7 @@ KEY_REROLLS = "rerolls_per_deal"
 KEY_GROUP_CHAT = "group_chat_id"
 KEY_TEMPLATE = "message_template"
 KEY_ANNOUNCE = "announce_in_group"
+KEY_BOARD_CHAT = "board_chat_id"
 
 DEFAULT_TEMPLATE = (
     "Книга: «{book}»\n"
@@ -39,6 +40,7 @@ class Settings:
     optics_cooldown: int
     rerolls_per_deal: int
     group_chat_id: int | None
+    board_chat_id: int | None  # куда уходят постеры раскладов, по умолчанию — группа
     template: str
     announce_in_group: bool
 
@@ -80,11 +82,15 @@ async def effective(conn: aiosqlite.Connection, config: Config) -> Settings:
     announce_raw = await get(conn, KEY_ANNOUNCE)
     announce = group_id is not None if announce_raw is None else announce_raw == "1"
 
+    board_raw = await get(conn, KEY_BOARD_CHAT)
+    board_id = int(board_raw) if board_raw and board_raw.strip() else group_id
+
     return Settings(
         no_repeat_window=await _int(conn, KEY_NO_REPEAT, config.no_repeat_window),
         optics_cooldown=await _int(conn, KEY_OPTICS_COOLDOWN, config.optics_cooldown),
         rerolls_per_deal=await _int(conn, KEY_REROLLS, config.rerolls_per_deal),
         group_chat_id=group_id,
+        board_chat_id=board_id,
         template=await get(conn, KEY_TEMPLATE) or DEFAULT_TEMPLATE,
         announce_in_group=announce,
     )

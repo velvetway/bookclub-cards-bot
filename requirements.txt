@@ -2,6 +2,9 @@ aiogram==3.30.0
 aiosqlite==0.22.1
 python-dotenv==1.2.2
 
+# бот собирает лист колоды и постер раздачи прямо в рантайме
+Pillow==12.3.0
+
 # для тестов
 pytest==9.1.1
 pytest-asyncio==1.4.0

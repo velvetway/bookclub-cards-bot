@@ -1,2 +1,2 @@
-# Только для scripts/make_cards.py — самому боту Pillow не нужен.
-Pillow==11.3.0
+# Скриптам хватает того же Pillow, что стоит у бота.
+-r ../requirements.txt

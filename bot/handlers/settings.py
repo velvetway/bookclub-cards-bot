@@ -20,6 +20,7 @@ from bot.storage import settings as settings_repo
 from bot.storage.settings import (
     DEFAULT_TEMPLATE,
     KEY_ANNOUNCE,
+    KEY_BOARD_CHAT,
     KEY_GROUP_CHAT,
     KEY_NO_REPEAT,
     KEY_OPTICS_COOLDOWN,
@@ -40,6 +41,7 @@ PLACEHOLDERS = (
 
 class SettingsForm(StatesGroup):
     no_repeat = State()
+    board = State()
     optics = State()
     rerolls = State()
     group = State()
@@ -51,6 +53,9 @@ async def _settings_text(conn: aiosqlite.Connection, config: Config) -> str:
     group = current.group_chat_id if current.group_chat_id is not None else "не задана"
     announce = "да" if current.announce_in_group else "нет"
     rerolls = current.rerolls_per_deal or "выключены"
+    board = current.board_chat_id if current.board_chat_id is not None else "не задан"
+    if current.board_chat_id is not None and current.board_chat_id == current.group_chat_id:
+        board = f"{board} (та же группа)"
 
     return (
         "<b>Настройки</b>\n\n"
@@ -58,6 +63,7 @@ async def _settings_text(conn: aiosqlite.Connection, config: Config) -> str:
         f"Кулдаун оптики: {current.optics_cooldown} раздач\n"
         f"Рероллов на участника: {rerolls}\n"
         f"Группа для объявлений: {group} (постить: {announce})\n"
+        f"Чат для постеров: {board}\n"
         f"Шаблон сообщения: {'свой' if current.template != DEFAULT_TEMPLATE else 'стандартный'}"
     )
 
@@ -281,3 +287,38 @@ def _read_int(raw: str | None, *, low: int, high: int) -> int | None:
     except ValueError:
         return None
     return value if low <= value <= high else None
+
+
+@router.callback_query(SettingsCB.filter(F.action == "board"))
+async def ask_board(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.set_state(SettingsForm.board)
+    await callback.message.edit_text(
+        "Куда отправлять постеры раскладов?\n\n"
+        "Пришли ID чата или канала. У супергрупп и каналов он начинается на "
+        "<code>-100</code>, бот должен быть там администратором.\n\n"
+        "Постер показывает карты всех участников разом — это не то, что стоит "
+        "публиковать до встречи.\n\n"
+        "Вернуть к группе объявлений — пришли <code>-</code>.",
+        reply_markup=keyboards.settings_back(),
+    )
+    await callback.answer()
+
+
+@router.message(SettingsForm.board)
+async def save_board(
+    message: Message, conn: aiosqlite.Connection, config: Config, state: FSMContext
+) -> None:
+    raw = (message.text or "").strip()
+    if raw in ("-", "—"):
+        await settings_repo.set_value(conn, KEY_BOARD_CHAT, None)
+    else:
+        try:
+            chat_id = int(raw)
+        except ValueError:
+            await message.answer("Это не похоже на ID чата. Нужно число, например -1001234567890.")
+            return
+        await settings_repo.set_value(conn, KEY_BOARD_CHAT, chat_id)
+        log.info("чат для постеров → %s", chat_id)
+
+    await state.clear()
+    await _show(message, conn, config)
