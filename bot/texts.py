@@ -13,6 +13,9 @@ from bot.models import (
     DEAL_SENT,
     OPTICS,
     PHASE_NAMES,
+    POOL_BY_TYPE,
+    POOL_CUSTOM,
+    POOL_DECK,
     Book,
     Card,
     Deal,
@@ -86,6 +89,18 @@ def render_card_message(
     return text
 
 
+def pool_line(deal: Deal, deck_title: str | None = None) -> str:
+    """Откуда взяты карты — видно прямо в превью, чтобы не гадать по составу."""
+    if deal.pool_mode == POOL_DECK:
+        return f"Пул: {escape(deck_title)}" if deck_title else "Пул: одна колода"
+    if deal.pool_mode == POOL_BY_TYPE:
+        return f"Пул: только {PHASE_NAMES.get(deal.phase, deal.phase)}"
+    if deal.pool_mode == POOL_CUSTOM:
+        count = len(deal.pool_codes or [])
+        return f"Пул: {count} {plural(count, 'карта', 'карты', 'карт')} вручную"
+    return "Пул: все карты"
+
+
 def preview(
     deal: Deal,
     book: Book | None,
@@ -93,10 +108,12 @@ def preview(
     tz: ZoneInfo,
     *,
     numbered: bool = True,
+    deck_title: str | None = None,
 ) -> str:
     head = [
         f"Книга: {book_line(book)}",
         f"Тип: {PHASE_NAMES.get(deal.phase, deal.phase)} · {members_word(len(views))}",
+        pool_line(deal, deck_title),
     ]
     if book and book.meeting_at:
         head.append(f"Встреча: {fmt_dt(book.meeting_at, tz)}")

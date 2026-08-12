@@ -32,6 +32,9 @@ PHASE_NAMES = {
 POOL_ALL = "all"
 POOL_BY_TYPE = "by_type"
 POOL_CUSTOM = "custom"
+POOL_DECK = "deck"  # одна колода целиком: базовая или написанная под книгу
+
+DECK_MAIN = "main"  # ключ базовой колоды, у книжных ключ — префикс кода (ACK)
 
 # статусы раздачи
 DEAL_DRAFT = "draft"

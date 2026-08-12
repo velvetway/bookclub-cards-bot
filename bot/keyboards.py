@@ -146,9 +146,20 @@ def pick_members(
     return kb.as_markup()
 
 
-def pick_pool(phase: str) -> InlineKeyboardMarkup:
+def pick_pool(phase: str, decks: list | None = None) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
-    kb.button(text="Вся колода", callback_data=WizardCB(action="pool", value=POOL_ALL))
+    decks = decks or []
+
+    # отдельные колоды показываем, только когда их больше одной:
+    # иначе «вся колода» и «базовая колода» — это одно и то же
+    if len(decks) > 1:
+        for deck in decks:
+            kb.button(
+                text=f"🗂 {deck.title} ({deck.count})"[:60],
+                callback_data=WizardCB(action="deck", value=deck.key),
+            )
+
+    kb.button(text="Все карты сразу", callback_data=WizardCB(action="pool", value=POOL_ALL))
     if phase != PHASE_MIXED:
         kb.button(
             text=f"Только {PHASE_NAMES.get(phase, phase)}",

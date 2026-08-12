@@ -8,6 +8,7 @@ import pytest
 from aiogram.exceptions import TelegramForbiddenError
 
 from bot import db, delivery, images, service
+from bot.dealer import NotEnoughCards
 from bot.config import Config
 from bot.models import (
     ASSIGN_FAILED,
@@ -20,6 +21,7 @@ from bot.models import (
     POOL_ALL,
     POOL_BY_TYPE,
     POOL_CUSTOM,
+    POOL_DECK,
 )
 from bot.storage import books as books_repo
 from bot.storage import cards as cards_repo
@@ -370,3 +372,64 @@ async def test_основная_колода_доливается_если_пе�
     assert await cards_repo.count(connection) == 32
 
     await connection.close()
+
+
+async def make_book_deck(conn, book_id: int, count: int = 6):
+    """Книжная колода: карты с book_id и своим префиксом кода."""
+    for i in range(1, count + 1):
+        await cards_repo.create(
+            conn, INSERT, f"Книжная {i}", code=f"ACK-{i:02d}", book_id=book_id
+        )
+
+
+async def test_колоды_видны_отдельно(conn, config):
+    book = await make_book(conn)
+    await make_book_deck(conn, book.id)
+
+    decks = {d.key: d for d in await cards_repo.decks(conn)}
+
+    assert set(decks) == {"main", "ACK"}
+    assert decks["main"].count == 31
+    assert decks["ACK"].count == 6
+    assert decks["ACK"].title == book.title
+
+
+async def test_раздача_из_книжной_колоды_берёт_только_её_карты(conn, config):
+    book = await make_book(conn)
+    await make_book_deck(conn, book.id)
+    users = await make_members(conn, 4)
+    settings = await settings_repo.effective(conn, config)
+
+    deal = await deals_repo.create(conn, book.id, INSERT, POOL_DECK, ["ACK"])
+    await service.generate(conn, deal, users, settings)
+
+    views = await deals_repo.views(conn, deal.id)
+    assert len(views) == 4
+    assert all(v.card.code.startswith("ACK-") for v in views)
+
+
+async def test_раздача_из_базовой_колоды_не_трогает_книжные_карты(conn, config):
+    book = await make_book(conn)
+    await make_book_deck(conn, book.id)
+    users = await make_members(conn, 5)
+    settings = await settings_repo.effective(conn, config)
+
+    deal = await deals_repo.create(conn, book.id, "mixed", POOL_DECK, ["main"])
+    await service.generate(conn, deal, users, settings)
+
+    views = await deals_repo.views(conn, deal.id)
+    assert len(views) == 5
+    assert not any(v.card.code.startswith("ACK-") for v in views)
+
+
+async def test_книжная_колода_меньше_состава_даёт_понятную_ошибку(conn, config):
+    book = await make_book(conn)
+    await make_book_deck(conn, book.id, count=3)
+    users = await make_members(conn, 4)
+    settings = await settings_repo.effective(conn, config)
+
+    deal = await deals_repo.create(conn, book.id, INSERT, POOL_DECK, ["ACK"])
+    with pytest.raises(NotEnoughCards) as exc:
+        await service.generate(conn, deal, users, settings)
+
+    assert exc.value.missing == 1

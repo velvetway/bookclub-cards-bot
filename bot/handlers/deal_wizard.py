@@ -25,9 +25,11 @@ from bot.models import (
     DEAL_SENT,
     PHASE_MIXED,
     PHASE_NAMES,
+    DECK_MAIN,
     POOL_ALL,
     POOL_BY_TYPE,
     POOL_CUSTOM,
+    POOL_DECK,
 )
 from bot.storage import books as books_repo
 from bot.storage import cards as cards_repo
@@ -70,10 +72,20 @@ async def _show(target: Message | CallbackQuery, text: str, markup=None) -> None
         await target.answer(text, reply_markup=markup)
 
 
+async def _deck_title(conn: aiosqlite.Connection, deal) -> str | None:
+    if deal.pool_mode != POOL_DECK:
+        return None
+    key = (deal.pool_codes or [DECK_MAIN])[0]
+    deck = next((d for d in await cards_repo.decks(conn) if d.key == key), None)
+    return deck.title if deck else key
+
+
 async def _preview_text(conn: aiosqlite.Connection, deal, config: Config) -> str:
     book = await books_repo.get(conn, deal.book_id)
     views = await deals_repo.views(conn, deal.id)
-    head = texts.preview(deal, book, views, config.tz)
+    head = texts.preview(
+        deal, book, views, config.tz, deck_title=await _deck_title(conn, deal)
+    )
     if deal.status == DEAL_DRAFT:
         return head + "\n\n<i>Черновик. Участникам ещё ничего не ушло.</i>"
     return head + f"\n\n<i>{texts.STATUS_NAMES.get(deal.status, deal.status)}</i>"
@@ -329,17 +341,24 @@ async def members_done(
     if not data.get("members"):
         await callback.answer("Никто не выбран", show_alert=True)
         return
-    await _ask_pool(callback, state)
+    await _ask_pool(callback, state, conn)
 
 
 # --------------------------------------------------------------------- шаг пула
 
 
-async def _ask_pool(target: Message | CallbackQuery, state: FSMContext) -> None:
+async def _ask_pool(
+    target: Message | CallbackQuery, state: FSMContext, conn: aiosqlite.Connection
+) -> None:
     await state.set_state(Wizard.pool)
     data = await state.get_data()
     phase = data.get("phase", PHASE_MIXED)
-    await _show(target, "Из чего раздаём?", keyboards.pick_pool(phase))
+    decks = await cards_repo.decks(conn)
+
+    text = "Из чего раздаём?"
+    if len(decks) > 1:
+        text += "\n\n<i>Колода целиком — карты только из неё. «Все карты сразу» — общий котёл.</i>"
+    await _show(target, text, keyboards.pick_pool(phase, decks))
 
 
 @router.callback_query(WizardCB.filter(F.action == "back_members"))
@@ -347,6 +366,19 @@ async def back_to_members(
     callback: CallbackQuery, conn: aiosqlite.Connection, state: FSMContext
 ) -> None:
     await _ask_members(callback, conn, state)
+
+
+@router.callback_query(WizardCB.filter(F.action == "deck"))
+async def picked_deck(
+    callback: CallbackQuery,
+    callback_data: WizardCB,
+    conn: aiosqlite.Connection,
+    state: FSMContext,
+    config: Config,
+) -> None:
+    """Колода целиком: пул — только её карты."""
+    await state.update_data(pool_mode=POOL_DECK, deck_key=callback_data.value)
+    await _create_draft(callback, conn, state, config)
 
 
 @router.callback_query(WizardCB.filter(F.action == "pool"))
@@ -388,8 +420,10 @@ async def _ask_custom_pool(
 
 
 @router.callback_query(WizardCB.filter(F.action == "back_pool"))
-async def back_to_pool(callback: CallbackQuery, state: FSMContext) -> None:
-    await _ask_pool(callback, state)
+async def back_to_pool(
+    callback: CallbackQuery, state: FSMContext, conn: aiosqlite.Connection
+) -> None:
+    await _ask_pool(callback, state, conn)
 
 
 @router.callback_query(WizardCB.filter(F.action == "pool_page"))
@@ -481,7 +515,9 @@ async def _create_draft(
     pool_mode = data.get("pool_mode", POOL_ALL)
 
     pool_codes = None
-    if pool_mode == POOL_CUSTOM:
+    if pool_mode == POOL_DECK:
+        pool_codes = [data.get("deck_key", DECK_MAIN)]
+    elif pool_mode == POOL_CUSTOM:
         chosen = await cards_repo.get_many(conn, list(data.get("pool_ids", [])))
         pool_codes = [c.code for c in chosen.values()]
 
@@ -503,7 +539,7 @@ async def _create_draft(
             target,
             f"Не хватает {exc.missing} {word}: участников {exc.needed}, "
             f"в пуле {exc.available}.\n\nДобавь карт в пул или убери участников.",
-            keyboards.pick_pool(data.get("phase", PHASE_MIXED)),
+            keyboards.pick_pool(data.get("phase", PHASE_MIXED), await cards_repo.decks(conn)),
         )
         return
 

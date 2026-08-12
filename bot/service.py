@@ -8,7 +8,16 @@ import random
 import aiosqlite
 
 from bot.dealer import Choice, NotEnoughCards, UserHistory, choose_card, deal as run_deal
-from bot.models import POOL_ALL, POOL_BY_TYPE, POOL_CUSTOM, Assignment, Card, Deal
+from bot.models import (
+    DECK_MAIN,
+    POOL_ALL,
+    POOL_BY_TYPE,
+    POOL_CUSTOM,
+    POOL_DECK,
+    Assignment,
+    Card,
+    Deal,
+)
 from bot.storage import cards as cards_repo
 from bot.storage import deals as deals_repo
 from bot.storage.settings import Settings
@@ -39,12 +48,19 @@ async def resolve_pool(conn: aiosqlite.Connection, deal: Deal) -> list[Card]:
     if deal.pool_mode == POOL_CUSTOM:
         codes = deal.pool_codes or []
         return await cards_repo.list_all(conn, codes=codes, only_active=True)
+    if deal.pool_mode == POOL_DECK:
+        key = (deal.pool_codes or [DECK_MAIN])[0]
+        return await cards_repo.list_by_deck(conn, key)
     return await cards_repo.list_all(conn, only_active=True)
 
 
 def is_weighted(deal: Deal) -> bool:
-    """Веса типов работают только когда пул — вся колода (ТЗ, раздел 7)."""
-    return deal.pool_mode == POOL_ALL
+    """Веса типов работают, когда в пуле лежит целая колода (ТЗ, раздел 7).
+
+    При выборе конкретной колоды это тоже так: если в ней карты одного типа,
+    веса ничего не меняют, а в базовой дают привычные 20/65/15.
+    """
+    return deal.pool_mode in (POOL_ALL, POOL_DECK)
 
 
 async def generate(

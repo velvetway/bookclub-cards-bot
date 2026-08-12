@@ -11,7 +11,9 @@ from pathlib import Path
 
 import aiosqlite
 
-from bot.models import Card
+from dataclasses import dataclass
+
+from bot.models import DECK_MAIN, Card
 from bot.timeutil import parse_dt, utcnow_iso
 
 log = logging.getLogger(__name__)
@@ -91,6 +93,60 @@ async def get_many(conn: aiosqlite.Connection, ids: list[int]) -> dict[int, Card
     async with conn.execute(f"SELECT * FROM cards WHERE id IN ({marks})", ids) as cur:
         rows = await cur.fetchall()
     return {r["id"]: _row(r) for r in rows}
+
+
+@dataclass(frozen=True)
+class Deck:
+    """Колода как её видит админ при выборе пула."""
+
+    key: str  # "main" или префикс кодов книжной колоды
+    title: str
+    count: int
+
+    @property
+    def is_main(self) -> bool:
+        return self.key == DECK_MAIN
+
+
+async def decks(conn: aiosqlite.Connection) -> list[Deck]:
+    """Какие колоды есть в базе: общая плюс по одной на каждую книгу с картами."""
+    async with conn.execute(
+        """SELECT c.book_id, b.title AS book_title, COUNT(*) AS n, MIN(c.code) AS sample
+             FROM cards c
+             LEFT JOIN books b ON b.id = c.book_id
+            WHERE c.is_active = 1
+            GROUP BY c.book_id
+            ORDER BY (c.book_id IS NOT NULL), c.book_id"""
+    ) as cur:
+        rows = await cur.fetchall()
+
+    out = []
+    for row in rows:
+        if row["book_id"] is None:
+            out.append(Deck(key=DECK_MAIN, title="Базовая колода", count=int(row["n"])))
+        else:
+            out.append(
+                Deck(
+                    key=row["sample"].split("-")[0],
+                    title=row["book_title"] or "Книжная колода",
+                    count=int(row["n"]),
+                )
+            )
+    return out
+
+
+async def list_by_deck(conn: aiosqlite.Connection, key: str) -> list[Card]:
+    """Карты одной колоды: базовой (без книги) или книжной (по префиксу кода)."""
+    if key == DECK_MAIN:
+        sql = "SELECT * FROM cards WHERE is_active = 1 AND book_id IS NULL ORDER BY type, code"
+        params: tuple = ()
+    else:
+        sql = "SELECT * FROM cards WHERE is_active = 1 AND code LIKE ? ORDER BY type, code"
+        params = (f"{key}-%",)
+
+    async with conn.execute(sql, params) as cur:
+        rows = await cur.fetchall()
+    return [_row(r) for r in rows]
 
 
 async def next_code(conn: aiosqlite.Connection, card_type: str) -> str:
