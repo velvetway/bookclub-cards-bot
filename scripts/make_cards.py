@@ -63,8 +63,13 @@ def find_font(explicit: str | None) -> Path:
 
 
 def load_deck() -> dict[str, str]:
-    deck = json.loads(DECK.read_text(encoding="utf-8"))
-    return {item["code"]: item["title"] for item in deck}
+    """Названия карт из основной колоды и всех книжных."""
+    titles = {item["code"]: item["title"] for item in json.loads(DECK.read_text(encoding="utf-8"))}
+    for extra in sorted((BASE_DIR / "data" / "decks").glob("*.json")):
+        data = json.loads(extra.read_text(encoding="utf-8"))
+        for item in data.get("cards", data if isinstance(data, list) else []):
+            titles[item["code"]] = item["title"]
+    return titles
 
 
 def find_source(code: str, raw_dir: Path) -> Path | None:

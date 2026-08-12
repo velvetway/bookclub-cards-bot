@@ -1,36 +1,52 @@
 #!/usr/bin/env python3
-"""Собирает промпты карточек из prompts/scenes.json.
+"""Собирает промпты карточек из файла сцен.
 
-Источник один — scenes.json (общий стиль плюс сцена под смысл каждой карты).
-Отсюда получаются два файла:
-  prompts/card_prompts.md   — читать и копировать в Gemini руками
-  prompts/card_prompts.json — если генерить пачкой через API
+Источник — prompts/scenes*.json (общий стиль плюс кот и сцена под смысл каждой
+карты). Отсюда получаются два файла:
+  <имя>_prompts.md   — читать и копировать в Gemini руками
+  <имя>_prompts.json — если генерить пачкой через API
 
-    python scripts/build_prompts.py
+    python scripts/build_prompts.py                     # основная колода
+    python scripts/build_prompts.py --scenes prompts/scenes_ack.json
+    python scripts/build_prompts.py --all               # все колоды сразу
+
+Книжная колода может не описывать стиль, а сослаться на основную через
+"style_from" — тогда манера рисунка гарантированно одна на все колоды.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-SCENES = BASE_DIR / "prompts" / "scenes.json"
-OUT_MD = BASE_DIR / "prompts" / "card_prompts.md"
-OUT_JSON = BASE_DIR / "prompts" / "card_prompts.json"
+PROMPTS_DIR = BASE_DIR / "prompts"
+DEFAULT_SCENES = PROMPTS_DIR / "scenes.json"
 
-TYPE_BY_PREFIX = {"OPT": "Оптика", "INS": "Врезка", "RAT": "К оценке"}
+TYPE_BY_PREFIX = {
+    "OPT": "Оптика",
+    "INS": "Врезка",
+    "RAT": "К оценке",
+    "ACK": "Врезка · под книгу",
+}
 
-HEADER = """# Промпты для карточек
+DEFAULT_TITLE = "Промпты для карточек"
+DEFAULT_LEAD = (
+    "31 карта: у каждой свой кот и своя локация, общая — только манера рисунка."
+)
 
-31 карта: у каждой свой кот и своя локация, общая — только манера рисунка.
-Сгенерировано скриптом `scripts/build_prompts.py` из `prompts/scenes.json` —
-правь коты и сцены там, а не здесь.
+HEADER = """# {title}
+
+{lead}
+
+Сгенерировано скриптом `scripts/build_prompts.py` из `{source}` —
+правь котов и сцены там, а не здесь.
 
 ## Как пользоваться
 
 1. Генерируешь картинку по промпту карты. Формат квадратный, 1:1.
-2. Кладёшь результат в `data/cards/raw/` под именем кода: `OPT-01.png`, `INS-07.png`.
+2. Кладёшь результат в `data/cards/raw/` под именем кода: `OPT-01.png`, `ACK-07.png`.
 3. `python scripts/make_cards.py` — скрипт впечатает название карты в нижнюю
    полосу и сложит готовое в `data/cards/`. Бот сам подхватит файлы по коду.
 
@@ -38,12 +54,11 @@ HEADER = """# Промпты для карточек
 по-разному от карты к карте, а подпись должна быть одинаковой во всей колоде.
 Поэтому в промптах прямо запрещён любой текст, а низ кадра просят оставить
 спокойным — туда ляжет подпись.
-
+{extra}
 ## Что различается, а что нет
 
-Различается: кот (окрас, порода, возраст, характер — под смысл карты),
-локация, палитра, время суток, погода. Чёрный прокурор в холодном зале суда и
-рыжий подросток в летнем саду — это нормально и так задумано.
+Различается: герой (окрас, порода, возраст, характер — под смысл карты),
+локация, палитра, время суток, погода.
 
 Совпадает: манера рисунка. Тёплая живописная иллюстрация со сказочным
 реализмом, мягкий свет, боке, пылинки в воздухе, проработанная шерсть,
@@ -54,7 +69,7 @@ HEADER = """# Промпты для карточек
 
 - Генерируй всё в одном чате одной моделью, не меняя формулировку стиля.
 - Возьми одну удачную карту как референс и проси «та же манера рисунка,
-  другой кот и другое место» — модели держат стиль лучше, чем персонажа.
+  другой герой и другое место» — модели держат стиль лучше, чем персонажа.
 - Проверяй низ кадра: если туда попало что-то важное, перегенерируй, иначе
   подпись ляжет поверх.
 
@@ -74,13 +89,33 @@ HEADER = """# Промпты для карточек
 """
 
 
-def main() -> None:
-    data = json.loads(SCENES.read_text(encoding="utf-8"))
-    style = data["style"]
+def load_style(data: dict, source: Path) -> dict:
+    """Стиль берётся из самого файла либо из того, на который он ссылается."""
+    if "style" in data:
+        return data["style"]
+    reference = data.get("style_from")
+    if not reference:
+        raise SystemExit(f"{source.name}: нет ни style, ни style_from")
+    parent = json.loads((source.parent / reference).read_text(encoding="utf-8"))
+    return parent["style"]
+
+
+def build(source: Path) -> int:
+    data = json.loads(source.read_text(encoding="utf-8"))
+    style = load_style(data, source)
+    doc = data.get("doc", {})
     common = f"{style['look']}. {style['variation']}. {style['frame']}"
 
+    extra = doc.get("extra", "")
     lines = [
-        HEADER.format(style=common, negative=style["negative"]),
+        HEADER.format(
+            title=doc.get("title", DEFAULT_TITLE),
+            lead=doc.get("lead", DEFAULT_LEAD),
+            source=f"prompts/{source.name}",
+            extra=f"\n{extra}\n" if extra else "",
+            style=common,
+            negative=style["negative"],
+        ),
         "",
         "---",
         "",
@@ -106,11 +141,26 @@ def main() -> None:
         lines.append("```")
         lines.append("")
 
-    OUT_MD.write_text("\n".join(lines), encoding="utf-8")
-    OUT_JSON.write_text(
-        json.dumps(bundle, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
-    print(f"Готово: {len(bundle)} промптов → {OUT_MD.name}, {OUT_JSON.name}")
+    stem = "card" if source.stem == "scenes" else source.stem.removeprefix("scenes_")
+    out_md = PROMPTS_DIR / f"{stem}_prompts.md"
+    out_json = PROMPTS_DIR / f"{stem}_prompts.json"
+    out_md.write_text("\n".join(lines), encoding="utf-8")
+    out_json.write_text(json.dumps(bundle, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    print(f"{source.name}: {len(bundle)} промптов → {out_md.name}, {out_json.name}")
+    return len(bundle)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Собирает промпты карточек")
+    parser.add_argument("--scenes", type=Path, default=DEFAULT_SCENES, help="файл сцен")
+    parser.add_argument("--all", action="store_true", help="все файлы prompts/scenes*.json")
+    args = parser.parse_args()
+
+    sources = sorted(PROMPTS_DIR.glob("scenes*.json")) if args.all else [args.scenes]
+    total = sum(build(source) for source in sources)
+    if len(sources) > 1:
+        print(f"Всего: {total}")
 
 
 if __name__ == "__main__":

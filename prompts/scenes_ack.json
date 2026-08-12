@@ -1,0 +1,70 @@
+{
+  "style_from": "scenes.json",
+  "doc": {
+    "title": "Промпты для карточек «Убийство Роджера Экройда»",
+    "lead": "10 карт книжной колоды ACK. Манера рисунка та же, что у основной колоды —\nона подтягивается из `prompts/scenes.json`, чтобы книжные карты не выбивались\nиз общей стопки. Место действия у всех одно: английская деревня двадцатых.\nМестами вместо кота работает мышь.",
+    "extra": "## Осторожно, финал\n\nКарты этой колоды раскрывают развязку. Картинки — нет: ни одна сцена не\nпоказывает, кто и как. Их можно спокойно генерировать и показывать до встречи,\nа вот текст карт открывать только дочитавшим."
+  },
+  "cards": [
+    {
+      "code": "ACK-01",
+      "title": "Рассказчик",
+      "cat": "a tidy middle-aged grey tabby country doctor in a tweed waistcoat and pince-nez, pleasant and helpful, the sort everyone in the village trusts",
+      "scene": "writing his own account by lamplight at a mahogany desk in a 1920s English study, medical bag on the chair beside him; on the wall behind, his shadow sits in a subtly different posture than he does, warm brown and lamp-gold"
+    },
+    {
+      "code": "ACK-02",
+      "title": "Умолчание",
+      "cat": "a small bespectacled mouse archivist with careful paws and an unhurried, exacting manner",
+      "scene": "standing on an open page under a large magnifying glass, studying one printed line where a few words have fallen into deep shadow while the rest stay lit, the sentence still perfectly intact and unbroken, night library table, ink-blue and warm lamplight"
+    },
+    {
+      "code": "ACK-03",
+      "title": "Честная игра",
+      "cat": "two players facing each other: a sceptical brown tabby reader and a composed elderly lady cat in a 1920s cloche hat and pearls, both perfectly polite",
+      "scene": "at a green baize card table in a drawing room, one single card lying face down between them, all paws resting openly on the table where both can see them, a small rulebook open at the edge of the table, amber lamplight and a haze of smoke"
+    },
+    {
+      "code": "ACK-04",
+      "title": "Второй заход",
+      "cat": "a quiet cream-and-grey cat rereading with a slowly deepening frown",
+      "scene": "sitting in a wing armchair with the same book open for a second time; the tall mirror behind shows that very same room, but the furniture, the door and the light in it are subtly rearranged, twilight, dove grey and cold rose"
+    },
+    {
+      "code": "ACK-05",
+      "title": "Ватсон",
+      "cat": "a diligent mouse assistant in a knitted waistcoat with a notebook and pencil in its paws, sharply in focus in the foreground; far behind it, thrown out of focus, the small dapper silhouette of a cat detective",
+      "scene": "in a cluttered study, the assistant writing down every word while the blurred detective gestures at a map on the wall, the composition deliberately handing the whole foreground to the assistant, sepia and moss green"
+    },
+    {
+      "code": "ACK-06",
+      "title": "Кэролайн",
+      "cat": "a sharp-eyed calico lady cat with knitting needles, spectacles and the air of someone who knows everything first",
+      "scene": "at a lace-curtained village window, knitting a yarn that runs out through the window and threads on from house to house along the lane like telephone wire, neighbours' windows lighting up one after another in the dusk, warm rose and garden green"
+    },
+    {
+      "code": "ACK-07",
+      "title": "Последняя глава",
+      "cat": "an old theatrical black cat in evening dress, holding the final chapter like a script",
+      "scene": "standing on a small theatre stage in a single warm spotlight facing an empty auditorium, while the other half of the frame is a plain clerk's desk with a typed report and a rubber stamp under flat cold light, the two halves lit in openly different ways, crimson velvet against grey"
+    },
+    {
+      "code": "ACK-08",
+      "title": "Пуаро",
+      "cat": "a very small dapper cat with an immaculately waxed moustache, patent shoes and an egg-shaped head, retired and thoroughly pleased about it",
+      "scene": "in a sunny cottage kitchen garden among enormous vegetable marrows, watering can in paw, an unopened letter of invitation lying on the garden bench behind him and pointedly ignored, bright green and clay red"
+    },
+    {
+      "code": "ACK-09",
+      "title": "Кингс-Эббот",
+      "cat": "a row of village mice and cats at their garden gates, whiskers turned toward one another, one piece of news travelling down the lane from mouth to mouth",
+      "scene": "an English village street of thatched cottages at midday, a folded note passing paw to paw along the fence line, curtains twitching in every window it has already passed, the post office at the far end of the lane, sunlit green and cream"
+    },
+    {
+      "code": "ACK-10",
+      "title": "Финал",
+      "cat": "a solemn old mouse in mourning grey, quietly closing a heavy book with both paws",
+      "scene": "in a dark study after everyone has left: an empty armchair still holding the shape of whoever sat in it, a lamp turned down low, a clock showing a late hour, one unsent letter squared up on the desk, deep brown and ash, nothing violent anywhere in the frame"
+    }
+  ]
+}
