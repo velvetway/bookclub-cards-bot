@@ -1,14 +1,16 @@
 [
   {
     "code": "DECK-MAIN",
-    "title": "Бархатный Путь",
+    "title": "Базовая колода карточек",
     "prefix": null,
-    "accent": "#C9A227"
+    "accent": "#D8B24C",
+    "border": "double"
   },
   {
     "code": "DECK-ACK",
     "title": "Убийство Роджера Экройда",
     "prefix": "ACK",
-    "accent": "#8FA37A"
+    "accent": "#B0473A",
+    "border": "deco"
   }
 ]

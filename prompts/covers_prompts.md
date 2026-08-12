@@ -63,7 +63,7 @@ no text, no letters, no words, no numbers, no watermark, no signature, no logo, 
 
 ## Обложки
 
-### DECK-MAIN · Бархатный Путь
+### DECK-MAIN · Базовая колода карточек
 
 ```
 no character in the foreground, only the shadow of a sleeping cat curled against the spine of the book, half dissolved into the dark, a deck cover still life, viewed straight on: an old leather-bound book lying open on deep velvet cloth, a fan of blank unmarked cards rising out of its pages like moths taking off, dandelion seeds and dust motes drifting through a single warm shaft of light, a brass reading lamp far out of focus behind, symmetrical and calm composition, deep plum velvet, honey gold and worn leather brown. consistent rendering across the whole deck: warm painterly digital illustration with storybook realism, soft natural light, shallow depth of field with creamy bokeh, floating dust motes and faint sparkles, finely detailed fur, gentle vintage color grading, visible painterly brushwork. palette, location and time of day change from card to card; only the painting technique, level of detail and the cosy mood stay the same. square 1:1 composition, the cat in the upper two thirds, the bottom fifth of the frame kept calm, darker and uncluttered so a caption can be placed there later. no text, no letters, no words, no numbers, no watermark, no signature, no logo, no frame border, no people, not photorealistic, no harsh contrast, no neon colors
