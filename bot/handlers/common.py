@@ -42,6 +42,7 @@ ADMIN_COMMANDS = MEMBER_COMMANDS + [
     BotCommand(command="book", description="книги"),
     BotCommand(command="members", description="участники"),
     BotCommand(command="who", description="кто что получил"),
+    BotCommand(command="cover", description="обложка колоды в группу"),
     BotCommand(command="stats", description="статистика"),
     BotCommand(command="settings", description="настройки"),
 ]

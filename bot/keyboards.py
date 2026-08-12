@@ -9,6 +9,7 @@ from bot.callbacks import (
     AssignCB,
     BookCB,
     CardCB,
+    CoverCB,
     DealCB,
     MemberCB,
     MenuCB,
@@ -48,8 +49,20 @@ def main_menu() -> InlineKeyboardMarkup:
     kb.button(text="👥 Участники", callback_data=MenuCB(action="members"))
     kb.button(text="👀 Кто что получил", callback_data=MenuCB(action="who"))
     kb.button(text="📊 Статистика", callback_data=MenuCB(action="stats"))
+    kb.button(text="🖼 Обложка в группу", callback_data=MenuCB(action="cover"))
     kb.button(text="⚙️ Настройки", callback_data=MenuCB(action="settings"))
-    kb.adjust(1, 2, 2, 2)
+    kb.adjust(1, 2, 2, 2, 1)
+    return kb.as_markup()
+
+
+def cover_actions(cover, others: list, *, can_send: bool) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    if can_send:
+        kb.button(text="📣 Отправить в группу", callback_data=CoverCB(action="send", code=cover.code))
+    for other in others:
+        kb.button(text=f"🔄 {other.title}"[:60], callback_data=CoverCB(action="show", code=other.code))
+    kb.button(text="‹ В меню", callback_data=MenuCB(action="root"))
+    kb.adjust(1)
     return kb.as_markup()
 
 

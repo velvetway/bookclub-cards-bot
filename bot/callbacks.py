@@ -61,3 +61,10 @@ class RerollCB(CallbackData, prefix="r"):
     """Кнопка реролла под картой у участника."""
 
     assignment_id: int
+
+
+class CoverCB(CallbackData, prefix="cv"):
+    """Обложка колоды: показать другую, отправить в группу."""
+
+    action: str
+    code: str = ""

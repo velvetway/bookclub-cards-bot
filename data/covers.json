@@ -1,0 +1,14 @@
+[
+  {
+    "code": "DECK-MAIN",
+    "title": "Бархатный Путь",
+    "prefix": null,
+    "accent": "#C9A227"
+  },
+  {
+    "code": "DECK-ACK",
+    "title": "Убийство Роджера Экройда",
+    "prefix": "ACK",
+    "accent": "#8FA37A"
+  }
+]

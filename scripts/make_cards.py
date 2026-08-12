@@ -28,6 +28,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DECK = BASE_DIR / "data" / "deck.json"
 RAW_DIR = BASE_DIR / "data" / "cards" / "raw"
 OUT_DIR = BASE_DIR / "data" / "cards"
+COVERS_DIR = BASE_DIR / "data" / "covers"
 
 EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp")
 
@@ -46,6 +47,7 @@ TEXT_MARGIN = 0.08       # отступ от краёв по ширине
 MAX_FONT = 0.11          # максимальный кегль как доля высоты картинки
 MIN_FONT = 0.04
 MAX_SIDE = 1280          # Telegram всё равно ужмёт, а репозиторий не пухнет
+DEFAULT_ACCENT = (201, 162, 39)
 
 
 def find_font(explicit: str | None) -> Path:
@@ -63,13 +65,80 @@ def find_font(explicit: str | None) -> Path:
 
 
 def load_deck() -> dict[str, str]:
-    """Названия карт из основной колоды и всех книжных."""
+    """Названия карт из основной колоды, всех книжных и обложек."""
     titles = {item["code"]: item["title"] for item in json.loads(DECK.read_text(encoding="utf-8"))}
-    for extra in sorted((BASE_DIR / "data" / "decks").glob("*.json")):
+
+    sources = sorted((BASE_DIR / "data" / "decks").glob("*.json"))
+    covers = BASE_DIR / "data" / "covers.json"
+    if covers.exists():
+        sources.append(covers)
+
+    for extra in sources:
         data = json.loads(extra.read_text(encoding="utf-8"))
-        for item in data.get("cards", data if isinstance(data, list) else []):
+        for item in data.get("cards", data) if isinstance(data, dict) else data:
             titles[item["code"]] = item["title"]
     return titles
+
+
+def target_dir(code: str, out_dir: Path) -> Path:
+    """Обложки колод лежат отдельно от карт: их бот не раздаёт."""
+    return COVERS_DIR if code.startswith("DECK-") else out_dir
+
+
+def load_accents() -> dict[str | None, tuple[int, int, int]]:
+    """Цвет окантовки по колоде: префикс кода карты → акцент. None — общая колода."""
+    covers = BASE_DIR / "data" / "covers.json"
+    if not covers.exists():
+        return {None: DEFAULT_ACCENT}
+
+    out: dict[str | None, tuple[int, int, int]] = {None: DEFAULT_ACCENT}
+    for item in json.loads(covers.read_text(encoding="utf-8")):
+        raw = (item.get("accent") or "").lstrip("#")
+        if len(raw) != 6:
+            continue
+        colour = tuple(int(raw[i : i + 2], 16) for i in (0, 2, 4))
+        out[item.get("prefix")] = colour
+    return out
+
+
+def accent_for(code: str, accents: dict) -> tuple[int, int, int]:
+    return accents.get(code.split("-")[0], accents.get(None, DEFAULT_ACCENT))
+
+
+def draw_border(image: Image.Image, accent: tuple[int, int, int]) -> Image.Image:
+    """Окантовка: тёмная кайма по краю, тонкая линия колоды внутри, засечки в углах.
+
+    Кайма нужна, чтобы карточка не сливалась с фоном чата — в тёмной теме
+    Telegram у половины картинок края уходят в никуда.
+    """
+    width, height = image.size
+    side = min(width, height)
+    draw = ImageDraw.Draw(image, "RGBA")
+
+    frame = max(3, int(side * 0.011))
+    draw.rectangle([0, 0, width - 1, height - 1], outline=(18, 14, 10, 255), width=frame)
+
+    inset = int(side * 0.028)
+    line = max(2, int(side * 0.0032))
+    draw.rectangle(
+        [inset, inset, width - 1 - inset, height - 1 - inset],
+        outline=(*accent, 205),
+        width=line,
+    )
+
+    # засечки: короткие утолщения линии в углах, как на игральной карте
+    mark = int(side * 0.055)
+    thick = line * 2
+    for x0, y0, dx, dy in (
+        (inset, inset, 1, 1),
+        (width - 1 - inset, inset, -1, 1),
+        (inset, height - 1 - inset, 1, -1),
+        (width - 1 - inset, height - 1 - inset, -1, -1),
+    ):
+        draw.line([x0, y0, x0 + dx * mark, y0], fill=(*accent, 235), width=thick)
+        draw.line([x0, y0, x0, y0 + dy * mark], fill=(*accent, 235), width=thick)
+
+    return image
 
 
 def find_source(code: str, raw_dir: Path) -> Path | None:
@@ -107,7 +176,13 @@ def draw_plate(image: Image.Image) -> Image.Image:
     return image
 
 
-def render(source: Path, title: str, out_path: Path, font_path: Path) -> None:
+def render(
+    source: Path,
+    title: str,
+    out_path: Path,
+    font_path: Path,
+    accent: tuple[int, int, int] | None = None,
+) -> None:
     image = Image.open(source).convert("RGB")
     image = draw_plate(image)
 
@@ -122,6 +197,9 @@ def render(source: Path, title: str, out_path: Path, font_path: Path) -> None:
     draw.text((x + 2, y + 2), title, font=font, fill=(0, 0, 0))
     draw.text((x, y), title, font=font, fill=(255, 248, 235))
 
+    if accent is not None:
+        image = draw_border(image, accent)
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     if image.width > MAX_SIDE:
         image.thumbnail((MAX_SIDE, MAX_SIDE), Image.LANCZOS)
@@ -134,6 +212,7 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=OUT_DIR, help="куда класть готовые")
     parser.add_argument("--font", help="путь к ttf-шрифту с кириллицей")
     parser.add_argument("--only", help="обработать только одну карту, например OPT-01")
+    parser.add_argument("--no-border", action="store_true", help="без окантовки")
     args = parser.parse_args()
 
     if not args.raw.exists():
@@ -144,6 +223,7 @@ def main() -> None:
 
     font_path = find_font(args.font)
     deck = load_deck()
+    accents = load_accents()
     codes = [args.only] if args.only else list(deck)
 
     done, missing = 0, []
@@ -155,7 +235,13 @@ def main() -> None:
         if source is None:
             missing.append(code)
             continue
-        render(source, title, args.out / f"{code}.jpg", font_path)
+        render(
+            source,
+            title,
+            target_dir(code, args.out) / f"{code}.jpg",
+            font_path,
+            accent=None if args.no_border else accent_for(code, accents),
+        )
         done += 1
         print(f"✓ {code} — {title}")
 
