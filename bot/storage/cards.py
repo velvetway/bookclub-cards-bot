@@ -185,8 +185,12 @@ async def toggle_active(conn: aiosqlite.Connection, card_id: int) -> bool:
     return bool(card and card.is_active)
 
 
-async def count(conn: aiosqlite.Connection) -> int:
-    async with conn.execute("SELECT COUNT(*) AS n FROM cards") as cur:
+async def count(conn: aiosqlite.Connection, *, general_only: bool = False) -> int:
+    """general_only — считать только карты общей колоды, без написанных под книгу."""
+    sql = "SELECT COUNT(*) AS n FROM cards"
+    if general_only:
+        sql += " WHERE book_id IS NULL"
+    async with conn.execute(sql) as cur:
         row = await cur.fetchone()
     return int(row["n"]) if row else 0
 

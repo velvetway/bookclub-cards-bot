@@ -346,3 +346,27 @@ async def test_ручная_замена_на_занятую_карту_меня
     second_after = await deals_repo.get_assignment(conn, second.id)
     assert first_after.card_id == second.card_id
     assert second_after.card_id == first.card_id
+
+
+async def test_основная_колода_доливается_если_первой_залили_книжную(tmp_path):
+    """Книжную колоду можно залить скриптом до первого запуска бота.
+
+    Тогда карты в базе уже есть, и проверка «колода пуста» пропустила бы
+    основную колоду навсегда — поэтому считаем только карты без book_id.
+    """
+    connection = await db.connect(tmp_path / "fresh.db")
+    await db.init_db(connection)
+
+    book = await books_repo.create(connection, title="Убийство Роджера Экройда")
+    await cards_repo.create(
+        connection, INSERT, "Рассказчик", code="ACK-01", book_id=book.id
+    )
+
+    assert await cards_repo.count(connection) == 1
+    assert await cards_repo.count(connection, general_only=True) == 0
+
+    added = await cards_repo.seed_from_file(connection, DECK)
+    assert added == 31
+    assert await cards_repo.count(connection) == 32
+
+    await connection.close()

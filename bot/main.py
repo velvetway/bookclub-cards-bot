@@ -31,7 +31,9 @@ async def run() -> None:
     await db.init_db(conn)
     await users_repo.ensure_admins(conn, config.admin_ids)
 
-    if await cards_repo.count(conn) == 0:
+    # смотрим только на общие карты: книжную колоду могли залить скриптом раньше,
+    # и это не повод считать, что основная уже на месте
+    if await cards_repo.count(conn, general_only=True) == 0:
         added = await cards_repo.seed_from_file(conn, DECK_FILE)
         log.info("колода загружена из файла: %s карт", added)
 
