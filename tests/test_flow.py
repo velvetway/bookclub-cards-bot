@@ -433,3 +433,50 @@ async def test_книжная_колода_меньше_состава_даёт_
         await service.generate(conn, deal, users, settings)
 
     assert exc.value.missing == 1
+
+
+async def test_колода_включается_и_гасится_целиком(conn, config):
+    book = await make_book(conn)
+    await make_book_deck(conn, book.id, count=6)
+
+    changed = await cards_repo.set_deck_active(conn, "ACK", False)
+    assert changed == 6
+
+    decks = {d.key: d for d in await cards_repo.decks(conn)}
+    assert decks["ACK"].active == 0
+    assert decks["ACK"].count == 6, "погашенная колода не пропадает из списка"
+    assert decks["main"].active == 31, "базовую не задело"
+
+    # повторное выключение ничего не трогает
+    assert await cards_repo.set_deck_active(conn, "ACK", False) == 0
+
+    assert await cards_repo.set_deck_active(conn, "ACK", True) == 6
+    decks = {d.key: d for d in await cards_repo.decks(conn)}
+    assert decks["ACK"].active == 6
+
+
+async def test_из_погашенной_колоды_раздать_нельзя(conn, config):
+    book = await make_book(conn)
+    await make_book_deck(conn, book.id, count=6)
+    await cards_repo.set_deck_active(conn, "ACK", False)
+
+    users = await make_members(conn, 2)
+    settings = await settings_repo.effective(conn, config)
+    deal = await deals_repo.create(conn, book.id, INSERT, POOL_DECK, ["ACK"])
+
+    with pytest.raises(NotEnoughCards):
+        await service.generate(conn, deal, users, settings)
+
+
+async def test_погашенные_карты_не_попадают_в_общую_раздачу(conn, config):
+    book = await make_book(conn)
+    await make_book_deck(conn, book.id, count=6)
+    await cards_repo.set_deck_active(conn, "ACK", False)
+
+    users = await make_members(conn, 6)
+    settings = await settings_repo.effective(conn, config)
+    deal = await deals_repo.create(conn, book.id, "mixed", POOL_ALL)
+    await service.generate(conn, deal, users, settings)
+
+    views = await deals_repo.views(conn, deal.id)
+    assert not any(v.card.code.startswith("ACK-") for v in views)

@@ -94,6 +94,28 @@ async def cards_page(
     await _show_list(callback, conn, callback_data.page, callback_data.value)
 
 
+@router.callback_query(CardCB.filter(F.action.in_({"deck_on", "deck_off"})))
+async def toggle_deck(
+    callback: CallbackQuery, callback_data: CardCB, conn: aiosqlite.Connection
+) -> None:
+    """Включает или гасит колоду целиком — по одной карте это десяток нажатий."""
+    if not callback_data.value.startswith(keyboards.DECK_FILTER):
+        await callback.answer("Так можно только с колодой", show_alert=True)
+        return
+
+    key = callback_data.value[len(keyboards.DECK_FILTER) :]
+    turning_on = callback_data.action == "deck_on"
+    changed = await cards_repo.set_deck_active(conn, key, turning_on)
+
+    log.info("колода %s: %s карт → %s", key, changed, "включены" if turning_on else "выключены")
+    await callback.answer(
+        f"{'Включено' if turning_on else 'Выключено'}: {changed}"
+        if changed
+        else "Уже в этом состоянии"
+    )
+    await _show_list(callback, conn, callback_data.page, callback_data.value)
+
+
 @router.callback_query(CardCB.filter(F.action == "noop"))
 async def noop(callback: CallbackQuery) -> None:
     await callback.answer()

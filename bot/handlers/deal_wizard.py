@@ -353,7 +353,7 @@ async def _ask_pool(
     await state.set_state(Wizard.pool)
     data = await state.get_data()
     phase = data.get("phase", PHASE_MIXED)
-    decks = await cards_repo.decks(conn)
+    decks = [d for d in await cards_repo.decks(conn) if d.active]
 
     text = "Из чего раздаём?"
     if len(decks) > 1:

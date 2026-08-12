@@ -48,11 +48,40 @@ def test_кнопки_колод_в_списке_карт_собираются()
     from bot import keyboards
 
     decks = [
-        SimpleNamespace(key="main", title="Базовая колода", count=31),
-        SimpleNamespace(key="ACK", title="Убийство Роджера Экройда", count=10),
+        SimpleNamespace(key="main", title="Базовая колода", count=31, active=31),
+        SimpleNamespace(key="ACK", title="Убийство Роджера Экройда", count=10, active=4),
     ]
     markup = keyboards.cards_list([], 0, "deck.ACK", decks)
     labels = [button.text for row in markup.inline_keyboard for button in row]
 
     assert any("Базовая колода (31)" in text for text in labels)
-    assert any("· 🗂 Убийство Роджера Экройда (10)" == text for text in labels), "активный отмечен"
+    assert any(
+        text.startswith("· 🗂 Убийство Роджера Экройда") for text in labels
+    ), "активный фильтр отмечен"
+    assert any("вкл 4" in text for text in labels), "видно, что колода погашена не полностью"
+
+
+def test_кнопки_массового_включения_появляются_только_у_колоды():
+    from types import SimpleNamespace
+
+    from bot import keyboards
+
+    cards = [
+        SimpleNamespace(id=1, code="ACK-01", title="Раз", is_active=True),
+        SimpleNamespace(id=2, code="ACK-02", title="Два", is_active=False),
+    ]
+    decks = [
+        SimpleNamespace(key="main", title="Базовая колода", count=31, active=31),
+        SimpleNamespace(key="ACK", title="Экройд", count=2, active=1),
+    ]
+
+    with_deck = [
+        b.text for row in keyboards.cards_list(cards, 0, "deck.ACK", decks).inline_keyboard for b in row
+    ]
+    assert any("Выключить все (1)" in t for t in with_deck)
+    assert any("Включить все (1)" in t for t in with_deck)
+
+    by_type = [
+        b.text for row in keyboards.cards_list(cards, 0, "insert", decks).inline_keyboard for b in row
+    ]
+    assert not any("Выключить все" in t for t in by_type), "по типу карт массово не гасим"

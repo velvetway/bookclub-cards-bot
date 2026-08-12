@@ -101,20 +101,32 @@ class Deck:
 
     key: str  # "main" или префикс кодов книжной колоды
     title: str
-    count: int
+    count: int  # всего карт
+    active: int  # из них включённых
 
     @property
     def is_main(self) -> bool:
         return self.key == DECK_MAIN
 
+    @property
+    def is_off(self) -> bool:
+        return self.active == 0
+
 
 async def decks(conn: aiosqlite.Connection) -> list[Deck]:
-    """Какие колоды есть в базе: общая плюс по одной на каждую книгу с картами."""
+    """Какие колоды есть в базе: общая плюс по одной на каждую книгу с картами.
+
+    Выключенные карты тоже считаются: колода, погашенная целиком, должна
+    остаться в списке — иначе её нечем будет включить обратно.
+    """
     async with conn.execute(
-        """SELECT c.book_id, b.title AS book_title, COUNT(*) AS n, MIN(c.code) AS sample
+        """SELECT c.book_id,
+                  b.title AS book_title,
+                  COUNT(*) AS n,
+                  SUM(c.is_active) AS alive,
+                  MIN(c.code) AS sample
              FROM cards c
              LEFT JOIN books b ON b.id = c.book_id
-            WHERE c.is_active = 1
             GROUP BY c.book_id
             ORDER BY (c.book_id IS NOT NULL), c.book_id"""
     ) as cur:
@@ -122,17 +134,32 @@ async def decks(conn: aiosqlite.Connection) -> list[Deck]:
 
     out = []
     for row in rows:
+        common = {"count": int(row["n"]), "active": int(row["alive"] or 0)}
         if row["book_id"] is None:
-            out.append(Deck(key=DECK_MAIN, title="Базовая колода", count=int(row["n"])))
+            out.append(Deck(key=DECK_MAIN, title="Базовая колода", **common))
         else:
             out.append(
                 Deck(
                     key=row["sample"].split("-")[0],
                     title=row["book_title"] or "Книжная колода",
-                    count=int(row["n"]),
+                    **common,
                 )
             )
     return out
+
+
+async def set_deck_active(conn: aiosqlite.Connection, key: str, active: bool) -> int:
+    """Включает или гасит колоду целиком. Возвращает число задетых карт."""
+    if key == DECK_MAIN:
+        sql = "UPDATE cards SET is_active = ? WHERE book_id IS NULL AND is_active != ?"
+        params: tuple = (int(active), int(active))
+    else:
+        sql = "UPDATE cards SET is_active = ? WHERE code LIKE ? AND is_active != ?"
+        params = (int(active), f"{key}-%", int(active))
+
+    cursor = await conn.execute(sql, params)
+    await conn.commit()
+    return cursor.rowcount or 0
 
 
 async def list_by_deck(conn: aiosqlite.Connection, key: str) -> list[Card]:

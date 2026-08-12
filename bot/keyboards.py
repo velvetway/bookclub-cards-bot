@@ -151,11 +151,13 @@ def pick_pool(phase: str, decks: list | None = None) -> InlineKeyboardMarkup:
     decks = decks or []
 
     # отдельные колоды показываем, только когда их больше одной:
-    # иначе «вся колода» и «базовая колода» — это одно и то же
-    if len(decks) > 1:
-        for deck in decks:
+    # иначе «вся колода» и «базовая колода» — это одно и то же.
+    # погашенные целиком не показываем: раздать из них нечего
+    live = [d for d in decks if d.active]
+    if len(live) > 1:
+        for deck in live:
             kb.button(
-                text=f"🗂 {deck.title} ({deck.count})"[:60],
+                text=f"🗂 {deck.title} ({deck.active})"[:60],
                 callback_data=WizardCB(action="deck", value=deck.key),
             )
 
@@ -395,7 +397,33 @@ def cards_list(
     # колоды показываем, только когда их больше одной: иначе это те же «Все»
     if len(decks) > 1:
         for deck in decks:
-            kb.row(chip(f"🗂 {deck.title} ({deck.count})"[:60], f"{DECK_FILTER}{deck.key}"))
+            state = "" if deck.active == deck.count else f" · вкл {deck.active}"
+            kb.row(
+                chip(
+                    f"🗂 {deck.title} ({deck.count}{state})"[:60],
+                    f"{DECK_FILTER}{deck.key}",
+                )
+            )
+
+    # массовое включение доступно, когда открыта одна колода
+    if active.startswith(DECK_FILTER) and cards:
+        alive = sum(1 for c in cards if c.is_active)
+        bulk = []
+        if alive:
+            bulk.append(
+                InlineKeyboardButton(
+                    text=f"⛔️ Выключить все ({alive})",
+                    callback_data=CardCB(action="deck_off", value=active).pack(),
+                )
+            )
+        if alive < len(cards):
+            bulk.append(
+                InlineKeyboardButton(
+                    text=f"✅ Включить все ({len(cards) - alive})",
+                    callback_data=CardCB(action="deck_on", value=active).pack(),
+                )
+            )
+        kb.row(*bulk)
 
     kb.row(InlineKeyboardButton(text="➕ Добавить карту", callback_data=CardCB(action="new").pack()))
     kb.row(InlineKeyboardButton(text="‹ В меню", callback_data=MenuCB(action="root").pack()))
